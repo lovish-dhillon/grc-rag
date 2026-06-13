@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtualenv
+.venv/
+
+# Ingested raw sources — reproducible from the allowlist URLs, not committed.
+# (data/processed/* IS committable: small, derived, useful for offline downstream dev.)
+data/raw/
+
+# Secrets — never commit. Use .env.example as the committed template.
+.env
+.env.local
+.env.*.local
+*.local
+
+# Node / frontend (ui/ also has its own .gitignore)
+node_modules/
+ui/dist/
+
+# OS / editor cruft
+.DS_Store
+
+# Local research scrape cache (not part of the project)
+.firecrawl/

@@ -1,0 +1,54 @@
+[project]
+name = "grc-rag"
+version = "0.1.0"
+description = "Grounded, cite-or-refuse Q&A over AI-governance regulation (NIST AI RMF, EU AI Act)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Phase 1 deps are added deliberately, one capability at a time, so every
+    # line here maps to something we actually built and can explain.
+    "tiktoken>=0.7",      # real tokenizer — we size chunks in tokens, not characters
+    # --- ingestion (PRD-P1-01): fetch + extract the source standards ---
+    "httpx>=0.27",        # fetch source standards over HTTP, with timeouts
+    "pypdf>=4.0",         # extract the text layer from the NIST PDFs
+    "selectolax>=0.3",    # parse EUR-Lex HTML body text (robust, tiny; over stdlib/trafilatura)
+    # --- dense retrieval (PRD-P1-02): real semantic embeddings + the vector store ---
+    "sentence-transformers>=3.0",  # real local semantic embeddings (replaces the old hashing trick)
+    "numpy>=1.26",                 # the vector store IS a numpy matrix in Phase 1 (no vector DB yet)
+    # --- hybrid retrieval (PRD-P2-04): the lexical half, fused with dense by RRF ---
+    "rank-bm25>=0.2",     # BM25 lexical index — the keyword half of hybrid retrieval
+    # --- eval harness (PRD-P3-09): the LLM-as-judge for faithfulness/relevancy ---
+    "anthropic>=0.40",    # cloud LLM-judge behind the LLMClient seam — the first (and only) API dep
+    # --- observability (PRD-P3-10): per-query traces, P50/P95, cost ---
+    "langfuse>=3.0",      # self-hosted observability backend (NOT a RAG framework) — send query traces
+    # --- HTTP boundary (PRD-P4-12): the thin web API over the pipeline, for the UI ---
+    "fastapi>=0.115",     # the HTTP API over the pipeline (brings Pydantic v2 + Starlette)
+    "uvicorn>=0.30",      # ASGI server to run it (dev + deploy)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",  # coverage gate — testing rule requires 80%+ per module
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Ship the versioned prompt templates as package data so load_prompt() finds them whether
+# grc_rag is run from source or installed as a wheel (PRD-P2-07).
+[tool.setuptools.package-data]
+grc_rag = ["prompts/*.txt"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
