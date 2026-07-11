@@ -63,20 +63,25 @@ pytrec_eval. A retrieval hit is a chunk whose `clause_label` matches one of the 
 expected labels. These metrics are deterministic and need no key, which is what lets the CI
 gate run recall@10 on every push.
 
-## Results (2026-06-13)
+## Results (updated 2026-07-11 — prompt v3)
 
 Measured on the full golden set, hybrid retrieval into cross-encoder re-rank, local
 qwen2.5:7b generator, Haiku judge at temperature 0.
 
-| Metric | Target | v1 prompt | v2 prompt (current) | Gate |
-|---|---|---|---|---|
-| Faithfulness (judge) | ≥ 0.90 | 0.885 | **0.905** | pass |
-| Recall@10 | ≥ 0.85 | 0.889 | **0.889** | pass |
-| Out-of-corpus refusal | — | 5 / 5 | **5 / 5** | — |
-| Answer relevancy | tracked | 0.917 | **0.722** | regressed |
+| Metric | Target | v1 prompt | v2 prompt | v3 prompt (current) | Gate |
+|---|---|---|---|---|---|
+| Faithfulness (judge) | ≥ 0.90 | 0.885 | 0.905† | **0.924** | pass |
+| Recall@10 | ≥ 0.85 | 0.889 | 0.889 | **0.889** | pass |
+| Out-of-corpus refusal | — | 5 / 5 | 5 / 5 | **5 / 5** | — |
+| Answer relevancy | tracked | 0.917 | 0.722 | **0.806** | recovered |
 
-The gate is green on the v2 prompt: faithfulness 0.905 clears 0.90, recall@10 0.889 clears
-0.85.
+The gate is green on the v3 prompt: faithfulness **0.924** clears 0.90, recall@10 0.889 clears
+0.85. Recall/MRR/nDCG are prompt-independent (deterministic IR); MRR 0.646, nDCG@10 0.695.
+
+† v2's 0.905 was measured on the June-2026 Ollama build. Refreshing the stale scorecard in July
+(EVAL-001) on the current Ollama 0.24 build re-measured v2 at a reproducible **~0.88** — below
+the gate — because the 7B generator was elaborating past the cited chunks and mis-citing. That
+regression is what prompted v3 (see below and [ADR-0019](./adr/0019-prompt-v3-procedural-grounding.md)).
 
 ## What worked
 
@@ -92,14 +97,17 @@ The gate is green on the v2 prompt: faithfulness 0.905 clears 0.90, recall@10 0.
 
 ## What didn't, reported honestly
 
-- **The v2 prompt traded relevancy for faithfulness.** Tightening cite-or-refuse to "leave
-  it out if you are unsure" closed the faithfulness gap (0.885 → 0.905) but dropped answer
-  relevancy from 0.917 to 0.722, because the generator now answers less fully. The
-  faithfulness gain (+0.02) is small next to the relevancy loss (−0.20). The conclusion is
-  that prompt-tuning alone cannot push both high on a local 7B model; a stronger generator
-  is the real fix. v2 is kept because it meets the explicit faithfulness gate, with v1 one
-  line away if relevancy is weighted higher. See
-  [ADR-0012](./adr/0012-prompt-versioning-tradeoff.md).
+- **The v2 prompt traded relevancy for faithfulness — v3 later recovered both.** v2 tightened
+  cite-or-refuse to "leave it out if you are unsure": it closed the v1 faithfulness gap but
+  dropped answer relevancy from 0.917 to 0.722, because the generator answered less fully. At the
+  time the conclusion was that prompt-tuning alone couldn't push both high on a local 7B model
+  (see [ADR-0012](./adr/0012-prompt-versioning-tradeoff.md)). The July v3 rewrite revised that:
+  making the contract *procedural* (write each sentence from the one chunk that states it, in the
+  standard's own words; omit — don't refuse — an ungroundable sentence) lifted faithfulness to
+  **0.924** *and* relevancy back to **0.806**, on the same golden set with 0 judge parse errors.
+  The honest residue is ~4/36 in-corpus questions v3 now refuses because retrieval didn't surface
+  a grounding chunk — the correct cite-or-refuse response, and a pointer that retrieval, not the
+  prompt, is the next limit. See [ADR-0019](./adr/0019-prompt-v3-procedural-grounding.md).
 - **"Zero uncited claims" turned out to be unsound as a gate metric.** It was in the
   original target list, but the structural reading (a sentence with no citation) measured
   formatting, not grounding: on real v2 answers it flagged 49 cases across 22 answers, almost
@@ -123,7 +131,7 @@ produced.
 graph TD
     pr[PR / push] --> tier1[--tier1: recall@10, deterministic, keyless]
     pr --> check[--check-scorecard: faithfulness from committed card + staleness]
-    cron[nightly schedule / manual dispatch] --> judge[--judge: paid run, writes scorecard.json]
+    local[local refresh / manual dispatch] --> judge[--judge: paid run, writes scorecard.json]
     judge -.commits.-> card[(scorecard.json)]
     card --> check
     tier1 --> verdict{both pass?}
@@ -135,15 +143,18 @@ graph TD
 - **`--tier1`** computes recall@10 over the committed index and gates at 0.85. Keyless,
   deterministic, runs on every PR and push.
 - **`--check-scorecard`** reads the committed `scorecard.json`, gates faithfulness at 0.90,
-  and fails if the card is stale — older than the allowed age, or measured against a
+  and fails if the card is stale — older than the allowed age (30 days), or measured against a
   different golden set (it stores a SHA-256 of the golden file). Also keyless.
-- **`--judge`** runs the paid judge, writes a fresh scorecard, and commits it. It runs only
-  on a nightly schedule or manual dispatch, never on every push, so cost and the API key are
-  never exposed on a fork's PR.
+- **`--judge`** runs the paid judge, writes a fresh scorecard, and commits it. It runs **locally**
+  (where Ollama and the key already work) as a manual ritual, or via an on-demand
+  `workflow_dispatch` — never on every push and never on a nightly schedule, so cost and the API
+  key are never exposed on a fork's PR. Running a 7B generator on a free CPU runner proved too slow
+  and flaky to trust on a cadence, so the refresh is local-first ([ADR-0018](./adr/0018-local-first-scorecard-refresh.md),
+  which supersedes the nightly-schedule half of ADR-0011).
 
 The honest tradeoff is that a PR is gated on the last committed faithfulness score, not a
-fresh one. The staleness guard and the nightly refresh bound how old that can be. See
-[ADR-0011](./adr/0011-two-tier-ci-gate.md).
+fresh one. The staleness guard (30 days) and the manual/local refresh bound how old that can be. See
+[ADR-0011](./adr/0011-two-tier-ci-gate.md) and [ADR-0018](./adr/0018-local-first-scorecard-refresh.md).
 
 ## Pending
 

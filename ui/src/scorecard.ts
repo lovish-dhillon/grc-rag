@@ -34,24 +34,24 @@ export interface Scorecard {
 }
 
 export const SCORECARD: Scorecard = {
-  runDate: '2026-06-13',
-  promptVersion: 'cite-or-refuse/v2',
+  runDate: '2026-07-11',
+  promptVersion: 'cite-or-refuse/v3',
   judgeModel: 'claude-haiku-4-5',
   goldenItems: 41,
   judged: 36,
   corpusChunks: 451,
   clauseLabelled: 0.76,
   supportThreshold: 0.3325,
-  faithfulness: 0.905,
+  faithfulness: 0.924,
   recall: 0.889,
   metrics: [
-    { label: 'Faithfulness', value: '0.905', target: 'judge ≥ 0.90', status: 'pass', delta: '+0.020 vs v1' },
+    { label: 'Faithfulness', value: '0.924', target: 'judge ≥ 0.90', status: 'pass', delta: '+0.019 vs v2' },
     { label: 'Recall@10', value: '0.889', target: 'target ≥ 0.85', status: 'pass' },
     { label: 'Refusal', value: '5/5', target: 'out-of-corpus', status: 'pass' },
-    { label: 'Answer relevancy', value: '0.722', target: 'tracked', status: 'warn', delta: '−0.195 vs v1' },
+    { label: 'Answer relevancy', value: '0.806', target: 'tracked', status: 'pass', delta: '+0.084 vs v2' },
   ],
   gatedBars: [
-    { label: 'Faithfulness (LLM-judge, n=36)', value: 0.905, target: 0.9 },
+    { label: 'Faithfulness (LLM-judge, n=36)', value: 0.924, target: 0.9 },
     { label: 'Recall@10 (verified clauses)', value: 0.889, target: 0.85 },
   ],
 }

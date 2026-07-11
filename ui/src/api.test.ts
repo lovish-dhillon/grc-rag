@@ -17,7 +17,7 @@ const FIXTURE: AskResponse = {
     },
   ],
   retrieved: [{ chunk_id: 'eu-ai-act::5', clause_label: 'EU AI Act — Article 5', score: 8.2 }],
-  prompt_version: 'cite-or-refuse/v2',
+  prompt_version: 'cite-or-refuse/v3',
   latency_ms: 142,
 }
 

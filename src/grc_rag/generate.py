@@ -40,14 +40,18 @@ REFUSAL = "Not supported by the corpus."
 # Bump when the prompt contract changes, so an Answer records which prompt produced it. The
 # prompt text lives in a versioned file (``prompts/<id>.txt``, loaded by id — see
 # :mod:`grc_rag.prompts`); this version id names that prompt and survives a future re-version.
-# v2 (2026-06-13) tightens cite-or-refuse to curb the v1 over-claiming the Phase-3 judge surfaced
-# (faithfulness 0.885 / 22 uncited claims): every sentence must be fully grounded in the chunk it
-# cites, no scope-generalising, no cross-chunk merging. v1 is kept on disk as frozen history.
-PROMPT_VERSION = "cite-or-refuse/v2"
+# v2 (2026-06-13) tightened cite-or-refuse to curb v1 over-claiming; on the current generator
+# stack it measured faithfulness ~0.88 (below the 0.90 gate) because the 7B model still
+# elaborated past the chunks and mis-cited (EVAL-001 investigation, 2026-07-11).
+# v3 (2026-07-11) makes the contract procedural — write each sentence from the ONE chunk that
+# literally states it, keep the standard's exact wording (no "immediately" for "without undue
+# delay"), omit (don't refuse) an ungroundable sentence — which lifted faithfulness to 0.914 AND
+# relevancy 0.722→0.806 (ADR-0019, resolving the ADR-0012 tradeoff). v1/v2 kept on disk as history.
+PROMPT_VERSION = "cite-or-refuse/v3"
 
-# The on-disk template id. ``cite-or-refuse/v2`` (PROMPT_VERSION) and ``cite-or-refuse.v2``
+# The on-disk template id. ``cite-or-refuse/v3`` (PROMPT_VERSION) and ``cite-or-refuse.v3``
 # (file id) are the same prompt — a filename just can't carry a slash.
-_PROMPT_ID = "cite-or-refuse.v2"
+_PROMPT_ID = "cite-or-refuse.v3"
 
 # A citation is any [token] that isn't itself nested brackets. We validate the
 # captured token against the retrieved ids; this regex only has to find candidates.

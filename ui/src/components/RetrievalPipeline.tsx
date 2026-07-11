@@ -11,7 +11,7 @@ const STAGES = [
   { key: 'fuse', label: 'Fuse', trace: 'reciprocal-rank fusion · merge + dedupe' },
   { key: 'rerank', label: 'Re-rank', trace: 'cross-encoder re-rank · scoring top candidates' },
   { key: 'gate', label: 'Gate', trace: 'support gate · top score vs threshold 0.3325' },
-  { key: 'generate', label: 'Generate', trace: 'generating cited answer · cite-or-refuse/v2' },
+  { key: 'generate', label: 'Generate', trace: 'generating cited answer · cite-or-refuse/v3' },
 ] as const
 
 // Time to advance through the first five stages; the run then holds on "Generate" (which truly
