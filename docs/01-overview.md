@@ -65,20 +65,20 @@ retrieval recall drops below threshold. The reasoning is in
 
 ## Results
 
-Measured on the 41-item hand-verified golden set on 2026-06-13 (hybrid retrieval → re-rank,
-local qwen2.5:7b generator, Anthropic Haiku judge at temperature 0):
+Measured on the 41-item hand-verified golden set on 2026-07-11 (prompt v3; hybrid retrieval →
+re-rank, local qwen2.5:7b generator, Anthropic Haiku judge at temperature 0):
 
 | Metric | Target | Result | |
 |--------|--------|--------|---|
-| Faithfulness (LLM-judge) | ≥ 0.90 | **0.905** | pass |
+| Faithfulness (LLM-judge) | ≥ 0.90 | **0.924** | pass |
 | Recall@10 | ≥ 0.85 | **0.889** | pass |
 | Out-of-corpus refusal | — | **5 / 5** | pass |
-| Answer relevancy | tracked | 0.722 | regressed (see below) |
+| Answer relevancy | tracked | **0.806** | recovered (see below) |
 
 The CI gate is green, and a seeded regression fixture turns it red on demand to prove it
-bites. The relevancy number is an honest regression: tightening the prompt to win
-faithfulness made the generator answer less fully. The full tradeoff and what it implies
-about the next step (a stronger generator, not more prompt-tuning) is in
+bites. Prompt v3 (2026-07-11) lifted faithfulness to 0.924 *and* recovered relevancy to 0.806
+by making cite-or-refuse procedural — after a stale-scorecard refresh had surfaced that the
+earlier v2 prompt had regressed to ~0.88 on the current generator build. The full story is in
 [04-evaluation.md](./04-evaluation.md) and [ADR-0012](./adr/0012-prompt-versioning-tradeoff.md).
 
 ## What's included

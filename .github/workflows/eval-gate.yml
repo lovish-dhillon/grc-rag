@@ -3,29 +3,31 @@ name: eval-gate
 # The CI regression gate (PRD-P3-11). Two tiers, split by cost/secrets:
 #   * tier1 (every PR/push)  — deterministic recall@10, keyless. Can fail the build with no API call.
 #   * check-scorecard (every PR/push) — reads the committed judge scorecard; fails if it breaches
-#       the faithfulness / uncited thresholds OR is stale. Keyless.
-#   * judge-refresh (schedule/dispatch only) — runs the paid Anthropic judge with the secret and
-#       commits a fresh scorecard. NEVER on every push, so we don't burn cost or expose the key.
+#       the faithfulness threshold OR is stale. Keyless.
+#   * judge-refresh (MANUAL workflow_dispatch only) — runs the paid Anthropic judge + local Ollama
+#       generator and commits a fresh scorecard. Deliberately NOT on a nightly schedule: a 7B
+#       generator on a free CPU runner is slow and flaky, so the supported refresh path is LOCAL
+#       (`python -m grc_rag.gate --judge` where Ollama + the key already work), then commit. See
+#       ADR-0018 (supersedes the nightly-schedule half of ADR-0011). This job is an on-demand
+#       escape hatch only; it needs the ANTHROPIC_API_KEY repo secret to be set.
 
 on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    - cron: "0 6 * * *"        # nightly: refresh the judge scorecard
-  workflow_dispatch:           # on-demand judge run
+  workflow_dispatch:           # on-demand judge run (and manual gate re-runs)
 
 jobs:
   # ---- Tier 1 + scorecard check: deterministic, keyless, runs on every PR/push ----
   gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Cache HuggingFace models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: hf-${{ runner.os }}-minilm-crossencoder
@@ -34,35 +36,51 @@ jobs:
       # ingest — only the sentence-transformer + cross-encoder weights, which the cache holds.
       - name: Tier 1 — recall@10 (deterministic, no key)
         run: python -m grc_rag.gate --tier1
+      # 30-day window matches the manual/local refresh cadence (ADR-0018): the scorecard is
+      # refreshed by hand, not nightly, so a 14-day window would re-red at the boundary.
       - name: Faithfulness via committed scorecard (no key; fails if stale)
-        run: python -m grc_rag.gate --check-scorecard --max-age-days 14
+        run: python -m grc_rag.gate --check-scorecard --max-age-days 30
 
-  # ---- Judge refresh: paid, key-scoped, cadence-only (NOT every push) ----
+  # ---- Judge refresh: paid, key-scoped, MANUAL dispatch only (never on a schedule) ----
   judge-refresh:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write          # EVAL-004: allow the scorecard commit/push back to main
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      # The judge needs the local generator too. Ollama + the 7B model is heavy (~5 GB), which is
-      # why this job is cadence-only; for a fast loop, refresh the scorecard locally and commit it.
+      # The judge needs the local generator too. Ollama + the 7B model is heavy (~5 GB) and slow
+      # on a CPU runner — hardened here (readiness poll + warm-up) so the manual path isn't racy,
+      # but the fast path stays local (ADR-0018).
       - name: Start Ollama + pull the generator model
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           ollama serve &
-          sleep 5
+          # EVAL-002: poll readiness instead of a race-prone `sleep 5` (cap ~60s).
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:11434/api/tags >/dev/null; then
+              echo "ollama ready after ${i}s"; break
+            fi
+            sleep 1
+          done
           ollama pull qwen2.5:7b
+          # Warm the model so the first real generate call isn't a cold start.
+          ollama run qwen2.5:7b "ok" >/dev/null 2>&1 || true
       - name: Run the judge and write the scorecard
+        # Raise the per-call generator timeout for the slow CPU path (OllamaClient reads this env).
+        env:
+          GRC_RAG_OLLAMA_TIMEOUT: "300"
         run: python -m grc_rag.gate --judge
       - name: Commit the refreshed scorecard
         run: |
           git config user.name  "eval-gate"
           git config user.email "eval-gate@users.noreply.github.com"
           git add data/eval/scorecard.json
-          git commit -m "chore: refresh eval scorecard" || echo "no change"
-          git push
+          # EVAL-004: cleanly no-op when unchanged instead of erroring.
+          git diff --cached --quiet && echo "scorecard unchanged" || { git commit -m "chore(eval): refresh scorecard"; git push; }

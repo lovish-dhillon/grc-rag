@@ -17,9 +17,31 @@ from the environment (never hardcoded) and a missing key fails fast.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import httpx
+
+# Per-call generator timeout, seconds. The default suits a local GPU; a slow CPU runner (the
+# manual CI judge-refresh path) can generate the full golden set well past 120s per call, so the
+# default is overridable via ``GRC_RAG_OLLAMA_TIMEOUT`` — config, not code (ADR-0018 / EVAL-002).
+_OLLAMA_TIMEOUT_ENV = "GRC_RAG_OLLAMA_TIMEOUT"
+_DEFAULT_OLLAMA_TIMEOUT = 120.0
+
+
+def _default_ollama_timeout() -> float:
+    """Read the generator timeout from the environment at construction time, falling back to the
+    local default. Read via ``default_factory`` (not at import) so the env is honoured per client
+    without breaking the frozen dataclass's immutability. A non-numeric value fails fast."""
+    raw = os.environ.get(_OLLAMA_TIMEOUT_ENV)
+    if not raw:
+        return _DEFAULT_OLLAMA_TIMEOUT
+    try:
+        return float(raw)
+    except ValueError as error:
+        raise ValueError(
+            f"{_OLLAMA_TIMEOUT_ENV}={raw!r} is not a number — set it to a timeout in seconds "
+            f"(e.g. 300) or unset it to use the {_DEFAULT_OLLAMA_TIMEOUT:g}s default."
+        ) from error
 
 
 @dataclass(frozen=True)
@@ -40,7 +62,7 @@ class OllamaClient:
     # (or any Ollama model) is a drop-in alternative behind the same seam.
     model: str = "qwen2.5:7b"
     host: str = "http://localhost:11434"
-    timeout: float = 120.0
+    timeout: float = field(default_factory=_default_ollama_timeout)
     num_ctx: int = 8192
 
     def complete(self, prompt: str) -> str:

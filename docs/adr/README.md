@@ -24,3 +24,5 @@ course gets its own record and supersedes the old one rather than editing it.
 | [0015](./0015-fastapi-boundary.md) | Thin FastAPI boundary; refusal as HTTP 200 | Accepted | 2026-06-13 |
 | [0016](./0016-react-ui.md) | React/Vite UI with first-class refusal | Accepted | 2026-06-13 |
 | [0017](./0017-console-redesign-live-data.md) | Console redesign bound to live data | Accepted | 2026-06-13 |
+| [0018](./0018-local-first-scorecard-refresh.md) | Local-first scorecard refresh; no nightly CI judge (supersedes the schedule half of 0011) | Accepted | 2026-07-11 |
+| [0019](./0019-prompt-v3-procedural-grounding.md) | Prompt v3: procedural per-sentence grounding (faithfulness 0.879→0.924, relevancy 0.722→0.806) | Accepted | 2026-07-11 |

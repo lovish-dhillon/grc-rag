@@ -1,7 +1,7 @@
 {
-  "faithfulness": 0.905,
-  "run_date": "2026-06-13",
+  "faithfulness": 0.9236111111111112,
+  "run_date": "2026-07-11",
   "golden_hash": "a125ae2fabd218a0a2f3cb4c93144331797cf51c1d9bdfcab35ae56a24fe9a85",
   "judge_model": "claude-haiku-4-5-20251001",
-  "prompt_version": "cite-or-refuse/v2"
+  "prompt_version": "cite-or-refuse/v3"
 }

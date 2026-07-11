@@ -57,17 +57,17 @@ generator) so it runs at near-zero cost; the one cloud call is the faithfulness 
 - **HTTP + UI** — a thin FastAPI boundary (refusal as HTTP 200) and a React/Vite
   console: ask → cited answer → click through to the clause.
 
-## Results (measured, 2026-06-13)
+## Results (measured, 2026-07-11 — prompt v3)
 
 On the 41-item hand-verified golden set, live (hybrid→re-rank · local qwen2.5:7b ·
 Anthropic Haiku judge, temperature 0):
 
 | Metric | Target | Actual | |
 |--------|--------|--------|---|
-| Faithfulness (LLM-judge) | ≥ 0.90 | **0.905** | ✅ |
+| Faithfulness (LLM-judge) | ≥ 0.90 | **0.924** | ✅ |
 | Recall@10 | ≥ 0.85 | **0.889** | ✅ |
 | Out-of-corpus refusal | — | **5/5** | ✅ |
-| Answer relevancy | — | 0.722 | — |
+| Answer relevancy | — | **0.806** | — |
 
 **CI gate: green.** A deliberately-seeded regression turns it red on demand. Full
 numbers, the honest tradeoffs, and every design decision are in the
@@ -80,7 +80,19 @@ python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m grc_rag.query "Which AI practices are prohibited under the EU AI Act?"
 # eval + gate (needs ANTHROPIC_API_KEY for the judge; local Ollama for generation):
 .venv/bin/python -m grc_rag.evaluate
-.venv/bin/python -m grc_rag.gate --check-scorecard --max-age-days 14
+.venv/bin/python -m grc_rag.gate --check-scorecard --max-age-days 30
+```
+
+**Refreshing the scorecard.** The faithfulness scorecard is refreshed **locally**, not by a
+nightly CI job — a 7B generator on a free CPU runner is too slow and flaky to trust ([ADR-0018](./docs/adr/0018-local-first-scorecard-refresh.md)).
+When the committed card ages past 30 days (or the golden set changes), regenerate and commit it
+where Ollama and the key already work:
+
+```bash
+export ANTHROPIC_API_KEY=…                 # your key (the judge is the only paid call)
+ollama serve & ; ollama pull qwen2.5:7b    # if not already running
+.venv/bin/python -m grc_rag.gate --judge   # rewrites data/eval/scorecard.json with today's date
+git add data/eval/scorecard.json && git commit -m "chore(eval): refresh scorecard"
 ```
 
 ## Corpus & licensing (a real decision, not an afterthought)

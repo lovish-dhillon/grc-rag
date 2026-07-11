@@ -53,7 +53,8 @@ This is a Python ≥3.11 package using a local `.venv` (Python 3.12). All toolin
 python -m grc_rag.query "…"             # ask a question (cite-or-refuse), local Ollama generator
 python -m grc_rag.evaluate              # run the eval harness over the golden set (needs ANTHROPIC_API_KEY)
 python -m grc_rag.gate --tier1          # deterministic recall gate (keyless)
-python -m grc_rag.gate --check-scorecard --max-age-days 14   # faithfulness gate off the committed scorecard
+python -m grc_rag.gate --check-scorecard --max-age-days 30   # faithfulness gate off the committed scorecard
+python -m grc_rag.gate --judge          # LOCAL scorecard refresh (needs Ollama + ANTHROPIC_API_KEY); see ADR-0018
 ```
 
 `pyproject.toml` sets `pythonpath = ["src"]` and `testpaths = ["tests"]`, so tests
@@ -105,8 +106,10 @@ ingest → chunk → embed (hybrid BM25 + dense) → rerank (cross-encoder)
 then `golden` (41-item hand-verified set) → `ir_metrics` + `judge` (a **real claim-by-claim
 LLM-judge**, `AnthropicClient` behind the `LLMClient` seam) → `evaluate` → `tracing`
 (`Tracer` seam over self-hosted Langfuse) + `percentiles` → `gate` + CI workflow; and a thin
-`api` (FastAPI) boundary with the `ui/` React frontend. The gate is **green on prompt v2**
-(faithfulness 0.905, recall@10 0.889). Architecture + phased plan: `docs/02-architecture.md`;
+`api` (FastAPI) boundary with the `ui/` React frontend. The gate is **green on prompt v3**
+(faithfulness 0.924, recall@10 0.889, relevancy 0.806 — v3 rewrote cite-or-refuse to be
+procedural, fixing a v2 faithfulness regression surfaced by the 2026-07-11 scorecard refresh;
+see ADR-0018/0019). Architecture + phased plan: `docs/02-architecture.md`;
 measured results: `docs/04-evaluation.md`.
 
 ## The docs are the source of truth (`docs/`)

@@ -79,7 +79,7 @@ build_index(Path('data/processed/chunks.jsonl'), out_dir=Path('data/processed'))
 
 # the keyless tiers the CI gate runs on every PR
 .venv/bin/python -m grc_rag.gate --tier1
-.venv/bin/python -m grc_rag.gate --check-scorecard --max-age-days 14
+.venv/bin/python -m grc_rag.gate --check-scorecard --max-age-days 30
 ```
 
 ## The web UI
@@ -113,7 +113,7 @@ What you see:
    real scores, and the query latency from `AskResponse`. Honest disclosure rather than a black
    box.
 4. **See the eval scorecard.** A collapsible strip carries the project's measured golden-set
-   numbers (faithfulness 0.905, recall@10 0.889, refusal 5/5), labelled "Measured on the golden
+   numbers (faithfulness 0.924, recall@10 0.889, refusal 5/5), labelled "Measured on the golden
    set" — system-level trust evidence, not per-answer telemetry.
 5. **Ask something out of corpus.** The refusal is a first-class, calm state (`role="status"`),
    visually distinct from a network error (`role="alert"`), and carries no fabricated citation.
