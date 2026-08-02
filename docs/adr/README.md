@@ -26,3 +26,5 @@ course gets its own record and supersedes the old one rather than editing it.
 | [0017](./0017-console-redesign-live-data.md) | Console redesign bound to live data | Accepted | 2026-06-13 |
 | [0018](./0018-local-first-scorecard-refresh.md) | Local-first scorecard refresh; no nightly CI judge (supersedes the schedule half of 0011) | Accepted | 2026-07-11 |
 | [0019](./0019-prompt-v3-procedural-grounding.md) | Prompt v3: procedural per-sentence grounding (faithfulness 0.879→0.924, relevancy 0.722→0.806) | Accepted | 2026-07-11 |
+| [0020](./0020-container-deploy-pluggable-generator.md) | Container deployment with a config-selected generator (scorecard covers the local generator only) | Accepted | 2026-08-02 |
+| [0021](./0021-mcp-boundary.md) | Expose the pipeline as an MCP tool (`ask_grc`), refusal as a successful result | Accepted | 2026-08-02 |

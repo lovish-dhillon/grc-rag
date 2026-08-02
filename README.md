@@ -69,9 +69,27 @@ Anthropic Haiku judge, temperature 0):
 | Out-of-corpus refusal | — | **5/5** | ✅ |
 | Answer relevancy | — | **0.806** | — |
 
-**CI gate: green.** A deliberately-seeded regression turns it red on demand. Full
-numbers, the honest tradeoffs, and every design decision are in the
+**CI gate: green**, with 254 tests passing. A deliberately-seeded regression turns it red on
+demand. Full numbers, the honest tradeoffs, and every design decision are in the
 [evaluation doc](./docs/04-evaluation.md) and the [decision records](./docs/adr/).
+
+> **What these numbers cover.** They were measured with the **local Ollama generator**. Recall@10
+> is generator-independent; faithfulness and relevancy are properties of the generated text, so a
+> deployment running a hosted model is *not* covered by this scorecard until the harness is re-run
+> against it ([ADR-0020](./docs/adr/0020-container-deploy-pluggable-generator.md)). Stated here
+> rather than buried, because a project whose thesis is "measure it, don't assert it" cannot
+> quietly extend a measurement to a configuration it never measured.
+
+## Deploy it, or plug it into an assistant
+
+```bash
+# Container (FastAPI boundary; models + index baked in) — full walkthrough in deploy/README.md
+docker build -t grc-rag . && docker run -p 8000:8000 \
+  -e GRC_RAG_LLM=anthropic -e ANTHROPIC_API_KEY=… grc-rag
+
+# MCP server — gives an assistant one tool, `ask_grc`, that cites clauses or refuses
+pip install -e ".[mcp]" && python -m grc_rag.mcp_server
+```
 
 ## Run it
 

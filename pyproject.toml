@@ -32,6 +32,12 @@ dev = [
     "pytest-cov>=5.0",  # coverage gate — testing rule requires 80%+ per module
     "ruff>=0.6",
 ]
+# --- MCP boundary (ADR-0021): the pipeline exposed as a tool for an assistant ---
+# Optional on purpose: the CLI, eval harness, HTTP API and the whole test suite must keep working
+# without it, so the SDK is imported lazily inside grc_rag.mcp_server.serve().
+mcp = [
+    "mcp>=1.2",           # official Model Context Protocol SDK — transport only, not a framework
+]
 
 [build-system]
 requires = ["setuptools>=68"]

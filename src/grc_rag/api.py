@@ -53,6 +53,13 @@ if TYPE_CHECKING:  # pragma: no cover
 _DEFAULT_CORS_ORIGINS = ("http://localhost:5173",)
 _MAX_QUESTION_LEN = 2000
 
+# Which generator the deployed app uses. Ollama is the default because it is keyless and zero
+# marginal cost — correct on a laptop, impossible in a container. See ADR-0020.
+_LLM_BACKEND_ENV = "GRC_RAG_LLM"
+_LLM_MODEL_ENV = "GRC_RAG_LLM_MODEL"
+_DEFAULT_LLM_BACKEND = "ollama"
+_LLM_BACKENDS = ("ollama", "anthropic")
+
 
 # --------------------------------------------------------------------------- #
 # Wire DTOs — validated at the boundary, immutable by construction (Pydantic).
@@ -207,16 +214,46 @@ def create_app(
     return app
 
 
+def build_llm_client(backend: str | None = None) -> LLMClient:
+    """Return the generator named by ``backend`` (default ``$GRC_RAG_LLM``, else Ollama).
+
+    The generator is the one component that cannot follow the code into a container: Ollama is a
+    local daemon, and a Container App has no sidecar for it. The :class:`~grc_rag.generate.LLMClient`
+    seam already makes generators interchangeable, so the deployment difference is *config, not a
+    second code path* — laptop keeps the keyless local model, cloud selects hosted Claude.
+
+    An unknown name raises rather than falling back to a default. A silent fallback would mean a
+    deployment generating with a model nobody chose, which would quietly invalidate every measured
+    faithfulness number the gate depends on — the exact class of failure this repo exists to prevent.
+    Imports stay lazy so the local path never requires the ``anthropic`` SDK, and vice versa.
+    """
+    import os
+
+    name = (backend or os.environ.get(_LLM_BACKEND_ENV) or _DEFAULT_LLM_BACKEND).strip().lower()
+    if name == "ollama":
+        from grc_rag.llm import OllamaClient
+
+        return OllamaClient()
+    if name == "anthropic":
+        from grc_rag.llm import AnthropicClient
+
+        model = os.environ.get(_LLM_MODEL_ENV)
+        return AnthropicClient(model=model) if model else AnthropicClient()
+    raise ValueError(
+        f"unknown {_LLM_BACKEND_ENV}={name!r} — expected one of {', '.join(_LLM_BACKENDS)}"
+    )
+
+
 def build_default_app() -> FastAPI:  # pragma: no cover - live wiring (integration-only)
     """Production wiring for ``uvicorn grc_rag.api:app``: the deployed hybrid+rerank retriever +
-    the local Ollama generator + the persisted calibrated threshold. Fails fast if the index or
+    the configured generator + the persisted calibrated threshold. Fails fast if the index or
     the threshold file is absent (``_build_retriever`` raises on a missing index;
     ``load_threshold`` returns ``None`` → we raise). CORS origins come from
-    ``GRC_RAG_CORS_ORIGINS`` (comma-separated) or the localhost default."""
+    ``GRC_RAG_CORS_ORIGINS`` (comma-separated) or the localhost default; the generator from
+    ``GRC_RAG_LLM`` (see :func:`build_llm_client`)."""
     import os
     from pathlib import Path
 
-    from grc_rag.llm import OllamaClient
     from grc_rag.query import build_retriever, load_threshold
 
     index_dir = Path(os.environ.get("GRC_RAG_INDEX_DIR", "data/processed"))
@@ -232,7 +269,7 @@ def build_default_app() -> FastAPI:  # pragma: no cover - live wiring (integrati
     )
     return create_app(
         retriever=build_retriever(index_dir),
-        client=OllamaClient(),
+        client=build_llm_client(),
         threshold=threshold,
         cors_origins=cors_origins,
     )

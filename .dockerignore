@@ -1,0 +1,40 @@
+# Keep the build context small and the image hermetic. Anything the container does not need at
+# runtime stays out — a smaller context also means faster `docker build` and `az acr build` uploads.
+
+# Virtualenv — the image installs its own dependencies.
+.venv/
+
+# Raw sources: reproducible from the allowlist URLs and ~4 MB; only data/processed is served.
+data/raw/
+
+# Eval + golden set are for the offline harness and CI gate, not the request path.
+data/eval/
+data/golden/
+
+# Frontend: the container serves the API only. The UI deploys as static assets separately.
+ui/
+
+# Tests, docs and tickets — not part of the runtime.
+tests/
+docs/
+tickets/
+.github/
+
+# Secrets — belt and braces alongside .gitignore. Never let a key reach a layer.
+.env
+.env.local
+.env.*.local
+
+# Caches and cruft
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.git/
+.gitignore
+.DS_Store
+.firecrawl/
+node_modules/

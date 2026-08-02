@@ -143,7 +143,23 @@ AI-governance domain). Don't reproduce it in this repo. The discipline still app
 note written there — **cite-or-refuse**: a note claims only what the source actually said,
 and never fills a gap with a plausible guess.
 
-## Not a git repo
+## Git
 
-This directory is not git-initialised. Don't assume git history exists; offer to
-`git init` if version control is needed.
+Git-initialised and public at `https://github.com/lovish-dhillon/grc-rag` (branch `main`).
+Licensed MIT (the corpus texts keep their own terms — see `LICENSE` and ADR-0002).
+
+## Deployment and the MCP boundary
+
+- **Container** (`Dockerfile`, `deploy/README.md`, ADR-0020): serves the FastAPI boundary with
+  the retrieval models and the committed index baked in. Because there is no Ollama in a
+  container, the generator is selected by `GRC_RAG_LLM` (`ollama` | `anthropic`) through the
+  existing `LLMClient` seam — config, not a second code path. An unknown value raises.
+- **Measurement caveat — do not lose this.** The committed scorecard (faithfulness 0.924) was
+  measured with the **local Ollama generator**. Recall@10 is generator-independent and carries
+  over; faithfulness and relevancy do not. A hosted-generator deployment is not covered by that
+  number until the harness is re-run with `GRC_RAG_LLM=anthropic` and a second scorecard is
+  committed.
+- **MCP** (`src/grc_rag/mcp_server.py`, ADR-0021): exposes one stdio tool, `ask_grc`, over the
+  same enforced pipeline; a refusal is a successful result, not an error. The `mcp` SDK is an
+  optional extra (`pip install -e ".[mcp]"`) imported lazily, so the CLI, API, eval harness and
+  the full test suite run without it.
